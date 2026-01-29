@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Stories - Claude Skill Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --muted: #8b949e;
+            --border: #30363d;
+            --code-bg: #161b22;
+            --green: #3fb950;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1, h2, h3 { color: var(--accent); font-weight: 600; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        a { color: var(--accent); }
+        .nav { margin-bottom: 2rem; }
+        .nav a { margin-right: 1rem; }
+        
+        .story {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            overflow: hidden;
+        }
+        .story-header {
+            background: var(--code-bg);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .story-header h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+        .story-body {
+            padding: 1.5rem;
+        }
+        .story-body blockquote {
+            margin: 0 0 1rem 0;
+            padding-left: 1rem;
+            border-left: 3px solid var(--accent);
+            color: var(--fg);
+            font-style: italic;
+        }
+        .acceptance {
+            margin-top: 1rem;
+        }
+        .acceptance h4 {
+            color: var(--muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .acceptance ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+        .acceptance li {
+            margin: 0.3rem 0;
+        }
+        .tag {
+            font-size: 0.75rem;
+            padding: 0.2em 0.6em;
+            border-radius: 12px;
+            background: var(--border);
+        }
+        .tag.mvp { background: var(--green); color: #000; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </nav>
+
+    <h1>📖 User Stories</h1>
+    
+    <p>Stories drive development. Each story is testable and represents real value.</p>
+
+    <h2>MVP Stories</h2>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-001: Batch URL Summarization</h3>
+            <span class="tag mvp">MVP</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As an operator, I submit a CSV of 100 URLs. The system queues them, runs a 'summarize' skill on each, and writes structured JSON summaries to a database table I can query."
+            </blockquote>
+            
+            <div class="acceptance">
+                <h4>Acceptance Criteria</h4>
+                <ul>
+                    <li>Can upload CSV with single "url" column</li>
+                    <li>Returns batch_id immediately</li>
+                    <li>GET /batch/{id} shows progress (queued/processing/completed)</li>
+                    <li>Completed batch includes structured results for each URL</li>
+                    <li>Failed items have categorized error types</li>
+                    <li>Results persist in Postgres for later query</li>
+                </ul>
+            </div>
+
+            <div class="acceptance">
+                <h4>Example Request</h4>
+                <pre><code>curl -X POST http://localhost:8000/batch/csv/url_summarizer \
+  -F "file=@urls.csv"
+
+# Response
+{
+  "batch_id": "abc-123",
+  "status": "queued",
+  "item_count": 100,
+  "message": "CSV batch queued..."
+}</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-002: Skill Discovery</h3>
+            <span class="tag mvp">MVP</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As a developer, I can list all available skills and see their input/output schemas so I know how to format my batch data."
+            </blockquote>
+            
+            <div class="acceptance">
+                <h4>Acceptance Criteria</h4>
+                <ul>
+                    <li>GET /skills returns list of all registered skills</li>
+                    <li>Each skill includes name, description, input schema, output schema</li>
+                    <li>Schemas are JSON Schema format (from Pydantic)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-003: Error Visibility</h3>
+            <span class="tag mvp">MVP</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As an operator, when items fail, I can see why: bad input, API error, rate limit, invalid output. This helps me fix my data or adjust my expectations."
+            </blockquote>
+            
+            <div class="acceptance">
+                <h4>Acceptance Criteria</h4>
+                <ul>
+                    <li>Failed items include error_type enum</li>
+                    <li>Failed items include human-readable error_message</li>
+                    <li>Batch status shows completed vs failed counts</li>
+                    <li>Can query just failed items for debugging</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <h2>Future Stories</h2>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-004: JSON Batch Input</h3>
+            <span class="tag">Phase 2</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As a developer integrating via API, I can POST a JSON array of inputs instead of a CSV file."
+            </blockquote>
+        </div>
+    </div>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-005: Webhook Notification</h3>
+            <span class="tag">Phase 2</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As an operator, I provide a webhook URL with my batch. When the batch completes, the system POSTs a notification with summary stats."
+            </blockquote>
+        </div>
+    </div>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-006: Cost Estimation</h3>
+            <span class="tag">Phase 3</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "Before running a large batch, I can see an estimated token cost based on the skill and input sizes."
+            </blockquote>
+        </div>
+    </div>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-007: Add Skill via Config</h3>
+            <span class="tag">Phase 4</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As a non-engineer, I can define a new skill by writing a YAML/JSON config file with the prompt template and schemas. No Python required."
+            </blockquote>
+        </div>
+    </div>
+
+    <div class="story">
+        <div class="story-header">
+            <h3>US-008: MCP Tool Integration</h3>
+            <span class="tag">Phase 4</span>
+        </div>
+        <div class="story-body">
+            <blockquote>
+                "As a developer, I can create a skill that uses MCP tools (function calling). The skill definition includes which tools are available and Claude can call them during execution."
+            </blockquote>
+        </div>
+    </div>
+
+</body>
+</html>

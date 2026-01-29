@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture - Claude Skill Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --muted: #8b949e;
+            --border: #30363d;
+            --code-bg: #161b22;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1, h2, h3 { color: var(--accent); font-weight: 600; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .diagram {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.4;
+        }
+        .component {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        .component h3 {
+            margin-top: 0;
+            font-size: 1.1rem;
+        }
+        a { color: var(--accent); }
+        .nav { margin-bottom: 2rem; }
+        .nav a { margin-right: 1rem; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </nav>
+
+    <h1>🏭 Architecture</h1>
+    
+    <p>The Skill Factory is a <strong>data processing pipeline</strong> that uses Claude as a transformation engine.</p>
+
+    <h2>Core Loop</h2>
+    
+    <div class="diagram">
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   INPUT     │────▶│   QUEUE     │────▶│   SKILL     │────▶│   OUTPUT    │
+│  (Batch)    │     │  (Redis)    │     │  (Claude)   │     │  (Postgres) │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+      │                   │                   │                   │
+      ▼                   ▼                   ▼                   ▼
+  CSV/JSON           Rate Limit          Pydantic            Queryable
+  API Call           Retry Logic         Validated           Structured
+  Webhook            Parallelism         Schema              JSON
+    </div>
+
+    <h2>Components</h2>
+
+    <div class="component">
+        <h3>📥 API Layer (FastAPI)</h3>
+        <p><code>src/api/main.py</code></p>
+        <p>Accepts batch submissions via JSON or CSV upload. Returns batch IDs for tracking. Exposes skill registry for discovery.</p>
+        <p><strong>Endpoints:</strong></p>
+        <ul>
+            <li><code>POST /batch</code> - Submit JSON batch</li>
+            <li><code>POST /batch/csv/{skill_name}</code> - Submit CSV batch</li>
+            <li><code>GET /batch/{batch_id}</code> - Get status/results</li>
+            <li><code>GET /skills</code> - List available skills</li>
+        </ul>
+    </div>
+
+    <div class="component">
+        <h3>⚡ Queue Layer (Celery + Redis)</h3>
+        <p><code>src/queue/tasks.py</code></p>
+        <p>Distributes work across workers. Handles rate limiting (10 req/s default). Automatic retry on transient failures.</p>
+        <p><strong>Key features:</strong></p>
+        <ul>
+            <li>Per-item parallelism with configurable concurrency</li>
+            <li>Exponential backoff on rate limits</li>
+            <li>Dead letter queue for persistent failures</li>
+        </ul>
+    </div>
+
+    <div class="component">
+        <h3>🧠 Skill Layer</h3>
+        <p><code>src/skills/</code></p>
+        <p>Each skill is a self-contained unit with input schema, output schema, and execution logic. Skills are registered in a central registry.</p>
+        <p><strong>Skill interface:</strong></p>
+        <pre><code>class BaseSkill:
+    name: str
+    description: str
+    input_schema: Type[BaseModel]   # Pydantic
+    output_schema: Type[BaseModel]  # Pydantic
+    
+    async def execute(self, input) -> SkillResult</code></pre>
+    </div>
+
+    <div class="component">
+        <h3>💾 Storage Layer (PostgreSQL)</h3>
+        <p><code>src/db/</code></p>
+        <p>Tracks batch jobs and individual item results. Stores both input and output for auditability.</p>
+        <p><strong>Tables:</strong></p>
+        <ul>
+            <li><code>batch_jobs</code> - Job metadata, status, counters</li>
+            <li><code>batch_items</code> - Individual inputs/outputs, timing, errors</li>
+        </ul>
+    </div>
+
+    <h2>Error Handling</h2>
+    
+    <p>Errors are categorized for observability:</p>
+    <ul>
+        <li><code>validation_input</code> - Bad input data (no retry)</li>
+        <li><code>validation_output</code> - LLM returned invalid schema (no retry)</li>
+        <li><code>api_error</code> - Anthropic API failure (retry)</li>
+        <li><code>rate_limit</code> - Hit rate limits (retry with backoff)</li>
+        <li><code>timeout</code> - Took too long (retry once)</li>
+        <li><code>confidence_low</code> - LLM unsure (no retry, flag for review)</li>
+        <li><code>source_not_found</code> - Referenced data missing (no retry)</li>
+    </ul>
+
+    <h2>Adding a New Skill</h2>
+    
+    <pre><code># 1. Create skill file: src/skills/my_skill.py
+
+from src.skills.base import BaseSkill, SkillResult
+from pydantic import BaseModel
+
+class MyInput(BaseModel):
+    field: str
+
+class MyOutput(BaseModel):
+    result: str
+
+class MySkill(BaseSkill):
+    name = "my_skill"
+    description = "Does something useful"
+    input_schema = MyInput
+    output_schema = MyOutput
+    
+    async def execute(self, input: MyInput) -> SkillResult:
+        # Call Claude, return structured result
+        ...
+
+# 2. Register in src/skills/registry.py
+
+from src.skills.my_skill import my_skill
+SKILL_REGISTRY["my_skill"] = my_skill</code></pre>
+
+</body>
+</html>

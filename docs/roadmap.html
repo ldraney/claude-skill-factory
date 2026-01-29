@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap - Claude Skill Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --muted: #8b949e;
+            --border: #30363d;
+            --code-bg: #161b22;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1, h2, h3 { color: var(--accent); font-weight: 600; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        a { color: var(--accent); }
+        .nav { margin-bottom: 2rem; }
+        .nav a { margin-right: 1rem; }
+        
+        .phase {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .phase h2 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .status {
+            font-size: 0.75rem;
+            padding: 0.2em 0.6em;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .status.done { background: var(--green); color: #000; }
+        .status.active { background: var(--yellow); color: #000; }
+        .status.planned { background: var(--border); color: var(--muted); }
+        
+        .task {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        .task:hover { background: var(--code-bg); }
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 3px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .checkbox.done {
+            background: var(--green);
+            border-color: var(--green);
+        }
+        .checkbox.done::after {
+            content: "✓";
+            color: #000;
+            font-size: 12px;
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </nav>
+
+    <h1>🗺️ Roadmap</h1>
+    
+    <p>Building the factory in public. Current focus: <strong>Phase 1 - Prove the Loop</strong></p>
+
+    <div class="phase">
+        <h2>Phase 1: Prove the Loop <span class="status active">IN PROGRESS</span></h2>
+        <p>One skill, one input type. Prove batch processing works end-to-end.</p>
+        
+        <div class="task"><div class="checkbox done"></div>Project scaffold (FastAPI, Celery, Postgres)</div>
+        <div class="task"><div class="checkbox done"></div>Base skill interface with Pydantic schemas</div>
+        <div class="task"><div class="checkbox done"></div>URL Summarizer skill</div>
+        <div class="task"><div class="checkbox done"></div>Claude client with JSON extraction</div>
+        <div class="task"><div class="checkbox done"></div>Celery task queue with rate limiting</div>
+        <div class="task"><div class="checkbox done"></div>Database models for batch tracking</div>
+        <div class="task"><div class="checkbox"></div>Docker compose working locally</div>
+        <div class="task"><div class="checkbox"></div>Process 10 URLs successfully</div>
+        <div class="task"><div class="checkbox"></div>Process 100 URLs with observability</div>
+    </div>
+
+    <div class="phase">
+        <h2>Phase 2: Skill Variety <span class="status planned">PLANNED</span></h2>
+        <p>Add skills that demonstrate different patterns.</p>
+        
+        <div class="task"><div class="checkbox"></div>Document analyzer (PDF/text → structured extraction)</div>
+        <div class="task"><div class="checkbox"></div>Data transformer (JSON → transformed JSON)</div>
+        <div class="task"><div class="checkbox"></div>Multi-step skill (chain Claude calls)</div>
+        <div class="task"><div class="checkbox"></div>Tool-using skill (Claude + function calling)</div>
+        <div class="task"><div class="checkbox"></div>Skill hot-reload from config files</div>
+    </div>
+
+    <div class="phase">
+        <h2>Phase 3: Scale & Reliability <span class="status planned">PLANNED</span></h2>
+        <p>Handle 5,000+ item batches reliably.</p>
+        
+        <div class="task"><div class="checkbox"></div>Context caching for repeated prompts</div>
+        <div class="task"><div class="checkbox"></div>Adaptive rate limiting per API key</div>
+        <div class="task"><div class="checkbox"></div>Priority queues (fast vs. bulk)</div>
+        <div class="task"><div class="checkbox"></div>Cost estimation before batch run</div>
+        <div class="task"><div class="checkbox"></div>Prometheus metrics endpoint</div>
+        <div class="task"><div class="checkbox"></div>Grafana dashboard template</div>
+    </div>
+
+    <div class="phase">
+        <h2>Phase 4: MCP Integration <span class="status planned">PLANNED</span></h2>
+        <p>Full Model Context Protocol support for dynamic skill loading.</p>
+        
+        <div class="task"><div class="checkbox"></div>MCP server for skill factory</div>
+        <div class="task"><div class="checkbox"></div>Skills loadable via MCP tool definitions</div>
+        <div class="task"><div class="checkbox"></div>External MCP server consumption (use other tools)</div>
+        <div class="task"><div class="checkbox"></div>Skill composition (combine skills)</div>
+    </div>
+
+    <div class="phase">
+        <h2>Phase 5: Production Features <span class="status planned">PLANNED</span></h2>
+        <p>What clients actually need.</p>
+        
+        <div class="task"><div class="checkbox"></div>API key management / multi-tenant</div>
+        <div class="task"><div class="checkbox"></div>Webhook notifications</div>
+        <div class="task"><div class="checkbox"></div>Result export (CSV, JSON, Postgres direct)</div>
+        <div class="task"><div class="checkbox"></div>S3/GCS input sources</div>
+        <div class="task"><div class="checkbox"></div>Scheduled/recurring batches</div>
+        <div class="task"><div class="checkbox"></div>Admin UI</div>
+    </div>
+
+</body>
+</html>
