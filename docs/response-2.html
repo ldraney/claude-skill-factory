@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Response 2: Hallucinations &amp; Output Quality - Claude Skill Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --muted: #8b949e;
+            --border: #30363d;
+            --code-bg: #161b22;
+            --green: #3fb950;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1, h2, h3 { color: var(--accent); font-weight: 600; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        a { color: var(--accent); }
+        .nav { margin-bottom: 2rem; }
+        .nav a { margin-right: 1rem; }
+
+        .question {
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            background: rgba(88, 166, 255, 0.05);
+            font-style: italic;
+        }
+
+        .layer {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .layer h3 {
+            margin-top: 0;
+        }
+        .layer-num {
+            font-size: 0.75rem;
+            padding: 0.2em 0.6em;
+            border-radius: 12px;
+            background: var(--green);
+            color: #000;
+            font-weight: 500;
+            margin-right: 0.5rem;
+        }
+
+        .ref {
+            color: var(--muted);
+            font-size: 0.9em;
+            margin-top: 0.5rem;
+        }
+        .ref code { color: var(--accent); }
+
+        .chain-diagram {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            white-space: pre;
+            line-height: 1.4;
+        }
+
+        .checks li {
+            margin: 0.4rem 0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="index.html">Proposal</a>
+        <a href="response-1.html">Response 1</a>
+        <a href="response-2.html">Response 2</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </nav>
+
+    <h1>Response 2: Hallucinations &amp; Output Quality</h1>
+
+    <div class="question">
+        When automating complex Claude skills (graphics, video, long-form essays), how would you handle hallucinations and standardize output quality?
+    </div>
+
+    <p>The hallucination problem is really an output validation problem, and the solution is structural, not conversational. You don't ask the model to "be accurate" &mdash; you make it impossible for bad output to reach your database.</p>
+
+    <h2>Three-Layer Approach</h2>
+
+    <div class="layer">
+        <h3><span class="layer-num">Layer 1</span> Schema Enforcement</h3>
+        <p>Every skill defines a Pydantic output schema. Claude's response must parse as valid JSON matching that schema or it's rejected. This catches structural hallucinations &mdash; invented fields, wrong types, missing data.</p>
+        <p>In my implementation (<code>claude_client.py</code>), the pipeline is:</p>
+        <ol>
+            <li>Append the JSON schema to the system prompt</li>
+            <li>Strip markdown code blocks if the model ignores the format instruction</li>
+            <li>Parse the response as JSON</li>
+            <li>Validate against the Pydantic model</li>
+        </ol>
+        <p>Failure at any step returns a categorized <code>VALIDATION_OUTPUT</code> error rather than silently passing garbage downstream.</p>
+        <p class="ref">Repo reference: <code>src/skills/claude_client.py</code> implements JSON extraction and validation. <code>src/skills/base.py</code> defines the schema enforcement contract.</p>
+    </div>
+
+    <div class="layer">
+        <h3><span class="layer-num">Layer 2</span> Constrained Output Design</h3>
+        <p>For complex outputs like long-form essays, I break the skill into chained steps rather than one massive prompt:</p>
+        <div class="chain-diagram">Step 1: Generate outline         (schema: list of section headings + word count targets)
+   |
+Step 2: Generate each section   (schema: section text + source citations)
+   |
+Step 3: Assemble and validate   (schema: final document + metadata)</div>
+        <p>Each step has its own schema and validation. A hallucinated citation in Step 2 can be caught and flagged before it reaches Step 3.</p>
+        <p>This is the "agentic workflow" pattern &mdash; multiple Claude calls chained programmatically, not one prompt doing everything.</p>
+        <p class="ref">Repo reference: Multi-step skills are on the <a href="roadmap.html">roadmap</a> (Phase 2). The queue infrastructure in <code>src/queue/tasks.py</code> already supports chained task execution.</p>
+    </div>
+
+    <div class="layer">
+        <h3><span class="layer-num">Layer 3</span> Confidence and Verification</h3>
+        <p>For factual content, I include a <code>confidence_score</code> field in the output schema. Items below threshold get flagged with error type <code>confidence_low</code> &mdash; no retry, just flagged for human review.</p>
+        <p>For graphics/video generation tasks where Claude is orchestrating external tools (DALL-E, Stable Diffusion, FFmpeg), the skill validates that the tool actually produced output (file exists, correct format, correct dimensions) rather than trusting the model's claim that it did.</p>
+        <p class="ref">Repo reference: Error type <code>confidence_low</code> is defined in the error categorization system. See <a href="architecture.html">architecture docs</a> for the full error taxonomy.</p>
+    </div>
+
+    <h2>Output Quality Standardization</h2>
+    <p>The key insight is that "quality" must be measurable, not subjective. I define quality as a set of programmatic checks that run after every skill execution:</p>
+    <ul class="checks">
+        <li><strong>Schema valid</strong> &mdash; output parses and matches the Pydantic model</li>
+        <li><strong>Required fields populated</strong> &mdash; all required fields contain non-trivial content</li>
+        <li><strong>Length within range</strong> &mdash; output length falls within expected bounds for the skill</li>
+        <li><strong>No self-referential language</strong> &mdash; reject outputs containing "As an AI...", "I cannot...", etc.</li>
+    </ul>
+    <p>These checks are code, not prompts. They run as part of the validation pipeline in <code>BaseSkill.run()</code>.</p>
+
+    <p>For long-form content specifically, I'd add:</p>
+    <ul class="checks">
+        <li>Word count validation per section</li>
+        <li>Readability scoring (Flesch-Kincaid or similar)</li>
+        <li>Duplicate detection across batch items to catch the model recycling paragraphs</li>
+    </ul>
+
+</body>
+</html>

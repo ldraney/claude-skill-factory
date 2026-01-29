@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Response 1: Scraping &amp; Testing 100+ Skills - Claude Skill Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --muted: #8b949e;
+            --border: #30363d;
+            --code-bg: #161b22;
+            --green: #3fb950;
+            --yellow: #d29922;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1, h2, h3 { color: var(--accent); font-weight: 600; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        a { color: var(--accent); }
+        .nav { margin-bottom: 2rem; }
+        .nav a { margin-right: 1rem; }
+
+        .question {
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            background: rgba(88, 166, 255, 0.05);
+            font-style: italic;
+        }
+
+        .day {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .day h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .day-label {
+            font-size: 0.75rem;
+            padding: 0.2em 0.6em;
+            border-radius: 12px;
+            background: var(--yellow);
+            color: #000;
+            font-weight: 500;
+        }
+
+        .ref {
+            color: var(--muted);
+            font-size: 0.9em;
+            margin-top: 0.5rem;
+        }
+        .ref code { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="index.html">Proposal</a>
+        <a href="response-1.html">Response 1</a>
+        <a href="response-2.html">Response 2</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </nav>
+
+    <h1>Response 1: Scraping &amp; Testing 100+ Skills</h1>
+
+    <div class="question">
+        How would you approach scraping and testing 100+ Claude skills within one week? Describe your approach, relevant experience, and step-by-step plan.
+    </div>
+
+    <p>I've already started building the infrastructure for exactly this problem. My repo <a href="https://github.com/ldraney/claude-skill-factory">claude-skill-factory</a> is a batch processing pipeline designed to ingest skills, validate them against Pydantic schemas, and run them through a Celery/Redis queue at scale.</p>
+
+    <h2>Day-by-Day Breakdown</h2>
+
+    <div class="day">
+        <h3><span class="day-label">Days 1&ndash;2</span> Skill Discovery and Schema Extraction</h3>
+        <p>Scrape skill definitions from source (MCP server manifests, tool-use API docs, or existing prompt libraries). For each skill, extract: input schema, output schema, system prompt, and any tool dependencies.</p>
+        <p>Store these as structured YAML/JSON configs &mdash; the goal is that defining a new skill should not require writing Python, just a config file.</p>
+        <p class="ref">Repo reference: <code>src/skills/base.py</code> defines the <code>BaseSkill</code> interface each skill must implement. <code>src/skills/registry.py</code> handles dynamic registration.</p>
+    </div>
+
+    <div class="day">
+        <h3><span class="day-label">Days 3&ndash;4</span> Automated Test Harness</h3>
+        <p>Each skill gets a test suite generated from its schemas. I use Pydantic to define expected inputs/outputs, then run each skill against synthetic test data and real-world edge cases.</p>
+        <p>The factory pattern I've built handles this &mdash; <code>BaseSkill.run()</code> already orchestrates: validate input &rarr; execute &rarr; validate output. Failed validations are categorized (<code>bad input</code>, <code>bad output</code>, <code>API error</code>, <code>timeout</code>, <code>low confidence</code>) so I can triage at scale rather than debugging one skill at a time.</p>
+        <p class="ref">Repo reference: <code>src/skills/base.py</code> orchestrates the validate &rarr; execute &rarr; validate pipeline. <code>tests/test_skills.py</code> shows the testing pattern.</p>
+    </div>
+
+    <div class="day">
+        <h3><span class="day-label">Days 5&ndash;6</span> Batch Execution and Triage</h3>
+        <p>Submit all 100+ skills through the queue with sample inputs. Celery handles rate limiting (10 req/s default), exponential backoff on rate limits, and automatic retries on transient failures.</p>
+        <p>Results land in Postgres with full audit trails &mdash; input, output, tokens used, latency, error type. I query the results table to identify which skills pass, which fail consistently, and which are flaky.</p>
+        <p class="ref">Repo reference: <code>src/queue/tasks.py</code> implements rate limiting, retries, and error categorization. <code>src/db/models.py</code> stores results with full audit trail.</p>
+    </div>
+
+    <div class="day">
+        <h3><span class="day-label">Day 7</span> Report and Stabilize</h3>
+        <p>Generate a reliability report: pass rate per skill, average latency, token cost, common failure modes. Fix the fixable ones (usually schema mismatches or prompt adjustments), flag the rest for manual review.</p>
+        <p class="ref">Repo reference: <code>src/db/connection.py</code> provides query functions for aggregating results. Error types defined in <code>src/skills/base.py</code> enable programmatic triage.</p>
+    </div>
+
+    <h2>Relevant Experience</h2>
+    <p>I built the skill factory architecture using FastAPI, Celery, Redis, PostgreSQL, and the Anthropic SDK. The core pipeline &mdash; batch submission, parallel processing, structured output validation, and error categorization &mdash; is functional.</p>
+    <p>I'm a DevOps engineer by background, so my instinct is to treat this as an infrastructure problem (queues, observability, failure categorization) rather than a prompt engineering problem.</p>
+
+    <h2>Key Architectural Decisions</h2>
+    <ul>
+        <li><strong>Config-driven skills over code-driven skills.</strong> Defining a skill should be a YAML file, not a Python class. This is how you get to 100+ without bottlenecking on engineers.</li>
+        <li><strong>Categorized errors over generic retries.</strong> Knowing <em>why</em> something failed (bad input vs. rate limit vs. invalid output) determines whether to retry, fix the schema, or flag for review.</li>
+        <li><strong>Database audit trail over log files.</strong> Every execution is a row in Postgres with structured data. Querying "show me all skills that fail with <code>validation_output</code> errors" is a SQL query, not a grep.</li>
+    </ul>
+
+</body>
+</html>

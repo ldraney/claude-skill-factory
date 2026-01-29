@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposal - Claude Skill Factory</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --fg: #c9d1d9;
+            --accent: #58a6ff;
+            --muted: #8b949e;
+            --border: #30363d;
+            --code-bg: #161b22;
+            --green: #3fb950;
+            --yellow: #d29922;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        h1, h2, h3 { color: var(--accent); font-weight: 600; }
+        h1 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        code {
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        a { color: var(--accent); }
+        .nav { margin-bottom: 2rem; }
+        .nav a { margin-right: 1rem; }
+
+        .hero {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            background: var(--code-bg);
+        }
+        .hero p { margin: 0.5rem 0; }
+
+        .deliverable {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+        .deliverable h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .deliverable ul { margin: 0.5rem 0; padding-left: 1.5rem; }
+
+        .stack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .stack-item {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            background: var(--code-bg);
+        }
+        .stack-item strong { color: var(--accent); }
+        .stack-item span { color: var(--muted); font-size: 0.9em; }
+
+        .links-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+        .links-section a {
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .links-section a:hover {
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .tag {
+            font-size: 0.75rem;
+            padding: 0.2em 0.6em;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .tag.built { background: var(--green); color: #000; }
+        .tag.roadmap { background: var(--yellow); color: #000; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="index.html">Proposal</a>
+        <a href="response-1.html">Response 1</a>
+        <a href="response-2.html">Response 2</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </nav>
+
+    <h1>Senior AI Backend Architect &mdash; Proposal</h1>
+
+    <div class="hero">
+        <p><strong>Lucas Draney</strong> &mdash; <a href="https://github.com/ldraney">github.com/ldraney</a></p>
+        <p>This repo, <a href="https://github.com/ldraney/claude-skill-factory">claude-skill-factory</a>, is a working technical artifact built to demonstrate exactly the system described in the job posting: a batch processing factory that ingests skills, runs them through Claude at scale, and produces validated structured output.</p>
+        <p>Rather than only describing what I would build, I built it.</p>
+    </div>
+
+    <h2>Deliverable Mapping</h2>
+    <p>The job defines three core deliverables. Here's how the repo maps to each:</p>
+
+    <div class="deliverable">
+        <h3>Skill Ingestion Engine <span class="tag built">Built</span> <span class="tag roadmap">MCP Roadmap</span></h3>
+        <p>A registry-based system for defining, discovering, and loading Claude skills.</p>
+        <ul>
+            <li><code>src/skills/base.py</code> &mdash; Abstract <code>BaseSkill</code> class with Pydantic input/output schemas</li>
+            <li><code>src/skills/registry.py</code> &mdash; Central skill registry for dynamic discovery</li>
+            <li><code>src/skills/url_summarizer.py</code> &mdash; Reference skill implementation</li>
+            <li><code>GET /skills</code> endpoint exposes all registered skills with their schemas</li>
+            <li>Phase 4 on the <a href="roadmap.html">roadmap</a>: MCP integration for dynamic skill loading from external tool definitions</li>
+        </ul>
+    </div>
+
+    <div class="deliverable">
+        <h3>Batch Processing Factory <span class="tag built">Built</span></h3>
+        <p>Celery + Redis queue for parallel execution with rate limiting, retries, and observability.</p>
+        <ul>
+            <li><code>src/queue/celery_app.py</code> &mdash; Celery application with Redis broker</li>
+            <li><code>src/queue/tasks.py</code> &mdash; Task definitions with rate limiting (10 req/s), exponential backoff, and dead letter queue</li>
+            <li><code>src/api/main.py</code> &mdash; FastAPI endpoints for batch submission (JSON and CSV) and status tracking</li>
+            <li><code>docker-compose.yml</code> &mdash; Redis + PostgreSQL services</li>
+            <li>Error categorization: <code>validation_input</code>, <code>api_error</code>, <code>rate_limit</code>, <code>timeout</code>, <code>confidence_low</code></li>
+        </ul>
+    </div>
+
+    <div class="deliverable">
+        <h3>Output Standardization <span class="tag built">Built</span></h3>
+        <p>Schema-enforced structured output with validation at every step.</p>
+        <ul>
+            <li><code>src/skills/claude_client.py</code> &mdash; Claude API integration with JSON schema injection into system prompts, markdown stripping, and Pydantic validation</li>
+            <li>Every skill defines <code>input_schema</code> and <code>output_schema</code> as Pydantic models</li>
+            <li><code>src/db/models.py</code> &mdash; SQLAlchemy models storing validated results with full audit trail (input, output, tokens, latency, error type)</li>
+            <li>Invalid output returns categorized <code>VALIDATION_OUTPUT</code> error, never silently passes</li>
+        </ul>
+    </div>
+
+    <h2>Technical Stack Alignment</h2>
+    <div class="stack-grid">
+        <div class="stack-item"><strong>FastAPI</strong><br><span>API layer</span></div>
+        <div class="stack-item"><strong>Anthropic SDK</strong><br><span>Claude integration</span></div>
+        <div class="stack-item"><strong>PostgreSQL</strong><br><span>Persistence &amp; audit</span></div>
+        <div class="stack-item"><strong>Celery + Redis</strong><br><span>Queue &amp; rate limiting</span></div>
+        <div class="stack-item"><strong>Pydantic</strong><br><span>Schema validation</span></div>
+        <div class="stack-item"><strong>Docker</strong><br><span>Local &amp; deployment</span></div>
+    </div>
+
+    <h2>Application Responses</h2>
+    <p>The job posting asks two technical questions. Full responses with implementation details:</p>
+    <div class="links-section">
+        <a href="response-1.html">Response 1: Scraping &amp; Testing 100+ Skills</a>
+        <a href="response-2.html">Response 2: Hallucinations &amp; Output Quality</a>
+    </div>
+
+    <h2>Project Documentation</h2>
+    <div class="links-section">
+        <a href="https://github.com/ldraney/claude-skill-factory">GitHub Repository</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="roadmap.html">Roadmap</a>
+        <a href="user-stories.html">User Stories</a>
+    </div>
+
+</body>
+</html>
